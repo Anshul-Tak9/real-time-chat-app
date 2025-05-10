@@ -43,3 +43,4 @@ ENV/
 # Local development
 .local
 *.local
+*.config.go
