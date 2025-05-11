@@ -1,11 +1,13 @@
 package authentication
 
 import (
+	"log"
 	"net/http"
 
 	jwt "github.com/appleboy/gin-jwt/v2"
 	"github.com/gin-gonic/gin"
 
+	"real-time-chat-app/config"
 	"real-time-chat-app/services"
 )
 
@@ -41,23 +43,47 @@ func Login(c *gin.Context) (interface{}, error) {
 
 // Authorizator checks if the user is authorized
 func Authorizator(data interface{}, c *gin.Context) bool {
-	claims, ok := data.(jwt.MapClaims)
+	log.Println("Authorizing user:", data)
+	username, ok := data.(string)
 	if !ok {
+		log.Println("Error: Invalid data type in Authorizator")
 		return false
 	}
-	
-	username, ok := claims["username"].(string)
-	if !ok || username == "" {
+
+	// Verify the user exists in the database
+	userService := services.NewUserService()
+	user, err := userService.GetUserByUsername(username)
+	if err != nil {
+		log.Printf("Error getting user: %v", err)
 		return false
 	}
-	
-	// TODO: Implement actual authorization logic
+	if user == nil {
+		log.Printf("Error: User not found in database for username: %s", username)
+		return false
+	}
+	log.Println("User exists in the database:", userService)
+
 	return true
 }
 
 // Unauthorized handles unauthorized access
 func Unauthorized(c *gin.Context, code int, message string) {
 	c.JSON(code, gin.H{"error": message})
+}
+
+func GetUserByUsername(c *gin.Context) (interface{}, error) {
+	var login map[string]string
+	if err := c.ShouldBind(&login); err != nil {
+		return nil, err
+	}
+
+	userService := services.NewUserService()
+	user, err := userService.GetUserByUsername(login[config.JWConfig.JWTIdentity])
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
 }
 
 // SignUp creates a new user
@@ -79,4 +105,23 @@ func SignUp(c *gin.Context) {
 		"message": "User created successfully",
 		"user_id": user.UserID,
 	})
+}
+
+func AuthMiddleware() (*jwt.GinJWTMiddleware, error) {
+	authMiddleware, err := jwt.New(&jwt.GinJWTMiddleware{
+		Realm:       config.JWConfig.JWTRealm,
+		Key:         []byte(config.JWConfig.JWTSecret),
+		Timeout:     config.JWConfig.JWTTimeout,
+		IdentityKey: config.JWConfig.JWTIdentity,
+		PayloadFunc: func(data interface{}) jwt.MapClaims {
+			return jwt.MapClaims{config.JWConfig.JWTIdentity: data.(string)}
+		},
+		Authenticator: Login,
+		Authorizator:  Authorizator,
+		Unauthorized:  Unauthorized,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return authMiddleware, nil
 }

@@ -19,6 +19,38 @@ A real-time chat application built with Go using Gin framework, MongoDB, and Web
 
 ## Setup
 
+### Using Docker (Recommended)
+
+1. Prerequisites:
+   - Docker
+   - Docker Compose
+
+2. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd real-time-chat-app
+   ```
+
+3. For production:
+   ```bash
+   docker-compose up --build
+   ```
+
+4. For development with hot-reloading:
+   ```bash
+   docker-compose up --build
+   ```
+
+The application will be available at `http://localhost:4000`
+
+#### Debug Mode Features
+- Hot-reloading with Air
+- Automatic code reloading on changes
+- Persistent MongoDB data
+- Environment variables support
+
+### Without Docker
+
 1. Prerequisites:
    - Go 1.18+
    - MongoDB
@@ -44,8 +76,6 @@ A real-time chat application built with Go using Gin framework, MongoDB, and Web
    ```bash
    go run main.go
    ```
-
-The application will be available at `http://localhost:4000`
 
 ## API Endpoints
 

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"time"
 )
 
@@ -15,7 +16,7 @@ var JWConfig = struct {
 	// Server Settings
 	Port string
 }{
-	JWTSecret:   "hkoT7ApfFDsNlur1v/d7cYRKzDVJpX4ugJtqBurYtLc=", // Secure JWT secret
+	JWTSecret:   os.Getenv("JWT_SECRET"),
 	JWTTimeout:  time.Hour,
 	JWTRealm:    "chat",
 	JWTIdentity: "username",
@@ -30,8 +31,8 @@ var MongoDBConfig = struct {
 	Timeout      int // in seconds
 }{
 
-	MongoURI:     "mongodb://localhost:27017",
-	DatabaseName: "chat_app",
+	MongoURI:     os.Getenv("MONGODB_URI"),
+	DatabaseName: os.Getenv("MONGODB_DATABASE"),
 	MaxPoolSize:  100,
 	MinPoolSize:  10,
 	Timeout:      10,

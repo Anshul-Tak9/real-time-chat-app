@@ -1,0 +1,15 @@
+.git
+.gitignore
+.dockerignore
+README.md
+*.log
+*.swp
+*.swo
+__pycache__
+.env
+.DS_Store
+node_modules
+vendor
+*.test.go
+*.pb.go
+*.pb.gw.go

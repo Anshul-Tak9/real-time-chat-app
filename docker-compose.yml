@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  app:
+    build: 
+      context: .
+      dockerfile: debug.Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017
+      - MONGODB_DATABASE=chat_app
+      - JWT_SECRET=hkoT7ApfFDsNlur1v/d7cYRKzDVJpX4ugJtqBurYtLc=
+      - JWT_TIMEOUT=3600
+    depends_on:
+      - mongodb
+    networks:
+      - chat-network
+    volumes:
+      - .:/app
+      - /app/.air
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    command: air
+
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - chat-network
+    healthcheck:
+      test: ["CMD-SHELL", "mongo --eval 'db.adminCommand(\"ping\")' 2>/dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+networks:
+  chat-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  air_cache:
