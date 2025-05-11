@@ -6,6 +6,7 @@ import (
 
 	jwt "github.com/appleboy/gin-jwt/v2"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 
 	"real-time-chat-app/config"
 	"real-time-chat-app/services"
@@ -15,6 +16,12 @@ import (
 type LoginRequest struct {
 	Username string `form:"username" json:"username" binding:"required"`
 	Password string `form:"password" json:"password" binding:"required"`
+}
+
+type PasswordResetRequest struct {
+	Username  string `json:"username" binding:"required"`
+	Password  string `json:"password" binding:"required,min=6"`
+	Password2 string `json:"password2" binding:"required,eqfield=Password"`
 }
 
 // Login is the authenticator function for JWT
@@ -30,39 +37,58 @@ func Login(c *gin.Context) (interface{}, error) {
 		return nil, jwt.ErrFailedAuthentication
 	}
 
-	// In production, you should compare hashed passwords
-	if user.Password != login.Password {
+	// Verify password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(login.Password)); err != nil {
 		return nil, jwt.ErrFailedAuthentication
 	}
 
-	// Update last login time
-	userService.UpdateLastLogin(login.Username)
+	// Store user_id in context
+	c.Set("user_id", user.UserID)
 
-	return user.Username, nil
+	// Update last login time
+	//userService.UpdateLastLogin(login.Username)
+
+	return user.UserID, nil
+}
+
+// ResetPassword handles password reset request
+func ResetPassword(c *gin.Context) {
+	var req PasswordResetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userService := services.NewUserService()
+	err := userService.ResetPassword(req.Username, req.Password)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Password has been reset successfully",
+	})
 }
 
 // Authorizator checks if the user is authorized
 func Authorizator(data interface{}, c *gin.Context) bool {
 	log.Println("Authorizing user:", data)
-	username, ok := data.(string)
-	if !ok {
-		log.Println("Error: Invalid data type in Authorizator")
-		return false
-	}
+	// userIdStr, ok := data.(string)
+	// if !ok {
+	// 	log.Println("Error: Invalid data type in Authorizator")
+	// 	return false
+	// }
 
-	// Verify the user exists in the database
-	userService := services.NewUserService()
-	user, err := userService.GetUserByUsername(username)
-	if err != nil {
-		log.Printf("Error getting user: %v", err)
-		return false
-	}
-	if user == nil {
-		log.Printf("Error: User not found in database for username: %s", username)
-		return false
-	}
-	log.Println("User exists in the database:", userService)
+	// // Convert user_id string to int64
+	// userId, err := strconv.ParseInt(userIdStr, 10, 64)
+	// if err != nil {
+	// 	log.Printf("Error: Invalid user_id format: %v", err)
+	// 	return false
+	// }
 
+	// Store user_id in context for later use
+	//c.Set("user_id", userId)
 	return true
 }
 
@@ -71,14 +97,15 @@ func Unauthorized(c *gin.Context, code int, message string) {
 	c.JSON(code, gin.H{"error": message})
 }
 
-func GetUserByUsername(c *gin.Context) (interface{}, error) {
+func GetUserById(c *gin.Context) (interface{}, error) {
 	var login map[string]string
 	if err := c.ShouldBind(&login); err != nil {
 		return nil, err
 	}
 
 	userService := services.NewUserService()
-	user, err := userService.GetUserByUsername(login[config.JWConfig.JWTIdentity])
+	userId := login[config.JWConfig.JWTIdentity]
+	user, err := userService.GetUserById(userId)
 	if err != nil {
 		return nil, err
 	}
@@ -115,6 +142,10 @@ func AuthMiddleware() (*jwt.GinJWTMiddleware, error) {
 		IdentityKey: config.JWConfig.JWTIdentity,
 		PayloadFunc: func(data interface{}) jwt.MapClaims {
 			return jwt.MapClaims{config.JWConfig.JWTIdentity: data.(string)}
+		},
+		IdentityHandler: func(c *gin.Context) interface{} {
+			claims := jwt.ExtractClaims(c)
+			return claims[config.JWConfig.JWTIdentity]
 		},
 		Authenticator: Login,
 		Authorizator:  Authorizator,

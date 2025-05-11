@@ -19,10 +19,11 @@ func Initialize() *gin.Engine {
 	// Public routes
 	r.POST("/login", authMiddleware.LoginHandler)
 	r.POST("/signup", authentication.SignUp)
-	r.POST("/getUserbyUsername", func(c *gin.Context) {
-		user, err := authentication.GetUserByUsername(c)
+	r.POST("/resetPassword", authentication.ResetPassword)
+	r.POST("/getUserById", func(c *gin.Context) {
+		user, err := authentication.GetUserById(c)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusOK, gin.H{"error": err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, user)
@@ -33,7 +34,7 @@ func Initialize() *gin.Engine {
 	api := r.Group("/api")
 	api.Use(authMiddleware.MiddlewareFunc())
 	{
-		api.POST("/rooms", chat.CreateRoom)
+		api.POST("/createRoom", chat.CreateRoom)
 		api.GET("/rooms", chat.ListRooms)
 		api.GET("/rooms/:id/history", chat.RoomHistory)
 	}

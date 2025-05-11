@@ -19,7 +19,7 @@ var JWConfig = struct {
 	JWTSecret:   os.Getenv("JWT_SECRET"),
 	JWTTimeout:  time.Hour,
 	JWTRealm:    "chat",
-	JWTIdentity: "username",
+	JWTIdentity: "user_id",
 }
 
 var MongoDBConfig = struct {
