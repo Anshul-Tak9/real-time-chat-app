@@ -34,13 +34,14 @@ func Initialize() *gin.Engine {
 	api := r.Group("/api")
 	api.Use(authMiddleware.MiddlewareFunc())
 	{
+
 		api.POST("/createRoom", chat.CreateRoom)
 		api.GET("/rooms", chat.ListRooms)
 		api.GET("/rooms/:id/history", chat.RoomHistory)
 	}
 
-	// WebSocket (also protected)
-	r.GET("/ws", authMiddleware.MiddlewareFunc(), chat.WSHandler)
+	// WebSocket route (also protected)
+	r.GET("/ws/:roomId", authMiddleware.MiddlewareFunc(), chat.WSHandler)
 
 	return r
 }

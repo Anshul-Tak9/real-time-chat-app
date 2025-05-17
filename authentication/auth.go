@@ -42,13 +42,13 @@ func Login(c *gin.Context) (interface{}, error) {
 		return nil, jwt.ErrFailedAuthentication
 	}
 
-	// Store user_id in context
-	c.Set("user_id", user.UserID)
+	// Return both user_id and username as a map
+	userData := map[string]string{
+		"user_id":  user.UserID,
+		"username": user.Username,
+	}
 
-	// Update last login time
-	//userService.UpdateLastLogin(login.Username)
-
-	return user.UserID, nil
+	return userData, nil
 }
 
 // ResetPassword handles password reset request
@@ -74,21 +74,27 @@ func ResetPassword(c *gin.Context) {
 // Authorizator checks if the user is authorized
 func Authorizator(data interface{}, c *gin.Context) bool {
 	log.Println("Authorizing user:", data)
-	// userIdStr, ok := data.(string)
-	// if !ok {
-	// 	log.Println("Error: Invalid data type in Authorizator")
-	// 	return false
-	// }
+	userMap, ok := data.(map[string]string)
+	if !ok {
+		log.Println("Error: Invalid data type in Authorizator")
+		return false
+	}
 
-	// // Convert user_id string to int64
-	// userId, err := strconv.ParseInt(userIdStr, 10, 64)
-	// if err != nil {
-	// 	log.Printf("Error: Invalid user_id format: %v", err)
-	// 	return false
-	// }
+	userId, ok := userMap["user_id"]
+	if !ok {
+		log.Println("Error: user_id not found in data")
+		return false
+	}
 
-	// Store user_id in context for later use
-	//c.Set("user_id", userId)
+	username := userMap["username"]
+	if username == "" {
+		log.Println("Error: username not found in data")
+		return false
+	}
+
+	// Store both values in context
+	c.Set("user_id", userId)
+	c.Set("username", username)
 	return true
 }
 
@@ -141,11 +147,21 @@ func AuthMiddleware() (*jwt.GinJWTMiddleware, error) {
 		Timeout:     config.JWConfig.JWTTimeout,
 		IdentityKey: config.JWConfig.JWTIdentity,
 		PayloadFunc: func(data interface{}) jwt.MapClaims {
-			return jwt.MapClaims{config.JWConfig.JWTIdentity: data.(string)}
+			userData, ok := data.(map[string]string)
+			if !ok {
+				return jwt.MapClaims{"error": "invalid data type"}
+			}
+			return jwt.MapClaims{
+				config.JWConfig.JWTIdentity: userData["user_id"],
+				"username":                  userData["username"],
+			}
 		},
 		IdentityHandler: func(c *gin.Context) interface{} {
 			claims := jwt.ExtractClaims(c)
-			return claims[config.JWConfig.JWTIdentity]
+			return map[string]string{
+				"user_id":  claims[config.JWConfig.JWTIdentity].(string),
+				"username": claims["username"].(string),
+			}
 		},
 		Authenticator: Login,
 		Authorizator:  Authorizator,
